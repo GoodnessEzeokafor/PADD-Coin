@@ -1,10 +1,13 @@
 pragma solidity 0.5.16;
 
-
 import "./PaddStandard.sol";
-
 contract FeeToken is PaddToken  {
     using SafeMath for uint256;
+
+    /* -------------------------------------- */
+    // Mappings
+    /* -------------------------------------- */
+     mapping(address=>bool) isBlacklisted;
 
     /* -------------------------------------- */
     // Variables
@@ -20,7 +23,9 @@ contract FeeToken is PaddToken  {
     /* ------------------------ */
     event BasisPointsRateSet(uint256 fee);
     event RewardedSet(address _address);
-     event MaximumFeeSet(uint256 _amount);
+    event MaximumFeeSet(uint256 _amount);
+    event AddressBlacklisted(address _address);
+    event AddressUnBlacklisted(address _address);
     /**
     * @dev Fix for the ERC20 short address attack.
     */
@@ -29,12 +34,42 @@ contract FeeToken is PaddToken  {
         _;
     }
 
+ 
+    
     /**
+    * @dev Blacklist an address from calling transfer function
+    * @param _user The address to be blacklisted.
+    */
+   function blackList(address _user) public onlyOwner {
+        require(!isBlacklisted[_user], "user already blacklisted");
+        isBlacklisted[_user] = true;
+        emit AddressBlacklisted(_user);
+        }
+    
+
+
+    
+    /**
+    * @dev remove an address fromblacklist
+    * @param _user The address to be blacklisted.
+    */
+    function removeFromBlacklist(address _user) public onlyOwner {
+        require(isBlacklisted[_user], "user already whitelisted");
+        isBlacklisted[_user] = false;
+         emit AddressUnBlacklisted(_user);
+    }
+    
+ 
+
+
+       /**
     * @dev transfer token for a specified address
     * @param _to The address to transfer to.
     * @param _value The amount to be transferred.
     */
     function transfer(address _to, uint _value) public onlyPayloadSize(2 * 32) returns (bool) {
+        require(!isBlacklisted[_to], "Recipient is backlisted");
+
         uint fee = (_value.mul(basisPointsRate)).div(10000);
         if (fee > maximumFee) {
             fee = maximumFee;
