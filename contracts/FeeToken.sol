@@ -9,9 +9,9 @@ contract FeeToken is PaddToken  {
     /* -------------------------------------- */
     // Variables
     /* -------------------------------------- */
-    address public rewarded = 0x5c3cb9C302DA8E4aB9bDFE232C63FD070f29A237;
+    address public rewarded = address(0);
     // percentage to be taken
-    uint    public basisPointsRate = 5000;
+    uint    public basisPointsRate = 0;
     // maximum fee to collect
     uint    public maximumFee = 0;
 
