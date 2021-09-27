@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0
+
 pragma solidity 0.5.16;
 
-import "./PaddStandard.sol";
+import "./PaddToken.sol";
 contract FeeToken is PaddToken  {
     using SafeMath for uint256;
 
@@ -8,6 +10,8 @@ contract FeeToken is PaddToken  {
     // Mappings
     /* -------------------------------------- */
      mapping(address=>bool) isBlacklisted;
+
+       mapping(address=>bool) _isExcludedFromFee;
 
     /* -------------------------------------- */
     // Variables
@@ -24,8 +28,12 @@ contract FeeToken is PaddToken  {
     event BasisPointsRateSet(uint256 fee);
     event RewardedSet(address _address);
     event MaximumFeeSet(uint256 _amount);
+
     event AddressBlacklisted(address _address);
     event AddressUnBlacklisted(address _address);
+
+       
+    event AddressExempted(address _address);
     /**
     * @dev Fix for the ERC20 short address attack.
     */
@@ -34,7 +42,7 @@ contract FeeToken is PaddToken  {
         _;
     }
 
- 
+
     
     /**
     * @dev Blacklist an address from calling transfer function
@@ -45,10 +53,7 @@ contract FeeToken is PaddToken  {
         isBlacklisted[_user] = true;
         emit AddressBlacklisted(_user);
         }
-    
 
-
-    
     /**
     * @dev remove an address fromblacklist
     * @param _user The address to be blacklisted.
@@ -58,8 +63,40 @@ contract FeeToken is PaddToken  {
         isBlacklisted[_user] = false;
          emit AddressUnBlacklisted(_user);
     }
+
+    //adding multiple addresses to the blacklist - Used to manually block known bots and scammers
+    function batchBlackList(address[] memory addresses) public onlyOwner {
+      for (uint256 i; i < addresses.length; ++i) {
+        isBlacklisted[addresses[i]] = true;
+      }
+    }
     
+     function batchRemoveFromBlackList (address[] memory addresses) public onlyOwner {
+      for (uint256 i; i < addresses.length; ++i) {
+        isBlacklisted[addresses[i]] = false;
+      }    
+    }
+
+
+    //set a wallet address so that it does not have to pay transaction fees
+    function excludeFromFee(address account) public onlyOwner {
+        _isExcludedFromFee[account] = true;
+    }
  
+    //set a wallet address so that it has to pay transaction fees
+    function includeInFee(address account) public onlyOwner {
+        _isExcludedFromFee[account] = false;
+    }
+
+    function isExcludedFromFee(address account) public view returns(bool) {
+        return _isExcludedFromFee[account];
+    }
+
+    
+
+
+    
+   
 
 
        /**
@@ -68,21 +105,39 @@ contract FeeToken is PaddToken  {
     * @param _value The amount to be transferred.
     */
     function transfer(address _to, uint _value) public onlyPayloadSize(2 * 32) returns (bool) {
+        require(_msgSender() != address(0), "Bep20: transfer from the zero address");
+        require(!isBlacklisted[_msgSender()], "This address is backlisted");
         require(!isBlacklisted[_to], "Recipient is backlisted");
+        require(_to != address(0), "Bep20: transfer to the zero address");
 
+        bool takeFee = true;
+        if(_isExcludedFromFee[_msgSender()] || _isExcludedFromFee[_to]){
+            takeFee = false;
+        }
+
+        if(!takeFee){
+        _balances[_msgSender()] = _balances[_msgSender()].sub(_value);
+        _balances[_to] = _balances[_to].add(_value);
+         emit Transfer(_msgSender(), _to, _value);
+          return true;
+        }else{
         uint fee = (_value.mul(basisPointsRate)).div(10000);
-        if (fee > maximumFee) {
+            if (fee > maximumFee) {
             fee = maximumFee;
         }
         uint sendAmount = _value.sub(fee);
-        _balances[msg.sender] = _balances[msg.sender].sub(_value);
+        _balances[_msgSender()] = _balances[_msgSender()].sub(_value);
         _balances[_to] = _balances[_to].add(sendAmount);
         if (fee > 0) {
             _balances[rewarded] = _balances[rewarded].add(fee);
-            emit Transfer(msg.sender, rewarded, fee);
+            emit Transfer(_msgSender(), rewarded, fee);
         }
-        emit Transfer(msg.sender, _to, sendAmount);
-        return true;
+        emit Transfer(_msgSender(), _to, sendAmount);
+          return true;
+        }
+
+
+   
     }
 
     /* -------------------------------------- */
@@ -101,5 +156,5 @@ contract FeeToken is PaddToken  {
         emit MaximumFeeSet(_maximumFee);
     }
 
-  
 }
+

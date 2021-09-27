@@ -27,13 +27,13 @@ module.exports = {
       provider: () =>
         new HDWalletProvider(
         {
-          mnemonic: process.env.MNEMONIC,
-        
+          // mnemonic: process.env.MAIN_MNEMONIC,
+          privateKeys : ["0391a6cae9b07dadecddcc94f73268ac868186198144710d0cb4d5fda0d539dc"],
           providerOrUrl: "https://rpc-mainnet.kcc.network",
           chainId : 321
         }
         ),
-      network_id: 321,
+      network_id: 1,
         confirmations: 10,
       timeoutBlocks: 200,
       skipDryRun: true
