@@ -1,5 +1,5 @@
-var FeeToken = artifacts.require("./FeeToken.sol");
+var PaddToken = artifacts.require('PaddToken.sol');
 
 module.exports = function (deployer) {
-    deployer.deploy(FeeToken);
+    deployer.deploy(PaddToken);
 };
