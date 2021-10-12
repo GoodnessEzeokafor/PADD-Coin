@@ -1,13 +1,6 @@
-// SPDX-License-Identifier: GPL-3.0
-
-pragma solidity 0.5.16;
-
-import "./PaddToken.sol";
-
 contract FeeToken is PaddToken {
     using SafeMath for uint256;
-
-    /* -------------------------------------- */
+ /* -------------------------------------- */
     // Mappings
     /* -------------------------------------- */
     mapping(address => bool) isBlacklisted;
@@ -38,7 +31,7 @@ contract FeeToken is PaddToken {
      * @dev Fix for the ERC20 short address attack.
      */
     modifier onlyPayloadSize(uint256 size) {
-        require(!(msg.data.length < size + 4));
+        require(!(msg.data.length < size .add( 4)));
         _;
     }
 
@@ -62,7 +55,7 @@ contract FeeToken is PaddToken {
         emit AddressUnBlacklisted(_user);
     }
 
-    //adding multiple addresses to the blacklist - Used to manually block known bots and scammers
+    //adding multiple addresses to the blacklist.subUsed to manually block known bots and scammers
     function batchBlackList(address[] memory addresses) public onlyOwner {
         for (uint256 i; i < addresses.length; ++i) {
             isBlacklisted[addresses[i]] = true;
@@ -99,6 +92,7 @@ contract FeeToken is PaddToken {
      */
     function transfer(address _to, uint256 _value)
         public
+        override
         onlyPayloadSize(2 * 32)
         returns (bool)
     {
@@ -111,142 +105,71 @@ contract FeeToken is PaddToken {
         require(_to != address(0), "Bep20: transfer to the zero address");
         require(_to != _msgSender(), "Bep20: cant transfer to Yourself");
 
-        // bool takeFee = true;
-        // if(_isExcludedFromFee[_msgSender()] || _isExcludedFromFee[_to]){
-        //     takeFee = false;
-        // }
-
-        // if(!takeFee){
-        // _balances[_msgSender()] = _balances[_msgSender()].sub(_value);
-        // _balances[_to] = _balances[_to].add(_value);
-        //  emit Transfer(_msgSender(), _to, _value);
-        //   return true;
-        // }else{
-        // uint fee = (_value.mul(basisPointsRate)).div(10000);
-        //     if (fee > maximumFee) {
-        //     fee = maximumFee;
-        // }
-        // uint sendAmount = _value.sub(fee);
-        // _balances[_msgSender()] = _balances[_msgSender()].sub(_value);
-        // _balances[_to] = _balances[_to].add(sendAmount);
-        // if (fee > 0) {
-        //     _balances[rewarded] = _balances[rewarded].add(fee);
-        //     emit Transfer(_msgSender(), rewarded, fee);
-        // }
-        // emit Transfer(_msgSender(), _to, sendAmount);
-        //   return true;
-        // }
 
         address sender = _msgSender();
         address recipient = _to;
 
         if (_isExcludedFromFee[sender] && !_isExcludedFromFee[recipient]) {
-            _transferFromExcluded(sender, recipient, _value);
+            _transferWithFees(sender, recipient, _value);
         } else if (
             !_isExcludedFromFee[sender] && _isExcludedFromFee[recipient]
         ) {
-            _transferToExcluded(sender, recipient, _value);
+            _transferWithFees(sender, recipient, _value);
         } else if (
             !_isExcludedFromFee[sender] && !_isExcludedFromFee[recipient]
         ) {
-            _transferStandard(sender, recipient, _value);
+            _transferWithFees(sender, recipient, _value);
         } else if (
             _isExcludedFromFee[sender] && _isExcludedFromFee[recipient]
         ) {
-            _transferBothExcluded(sender, recipient, _value);
+            _transferWithoutFees(sender, recipient, _value);
         } else {
-            _transferStandard(sender, recipient, _value);
+            _transferWithFees(sender, recipient, _value);
         }
+        return true;
     }
 
-    function _transferFromExcluded(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) private{
-        // take fee from recipient
-        uint256 fee = calculateFees(amount);
-        uint256 sendAmount = amount.sub(fee);
 
-        _balances[sender] = _balances[sender].sub(amount);
-        _balances[recipient] = _balances[recipient].add(sendAmount);
-
-        // send fee to reward wallet
-        if (fee > 0) {
-            _balances[rewarded] = _balances[rewarded].add(fee.div(2));
-            // burn 50% of fee
-            _burn(sender,fee.div(2));
-            emit Transfer(sender, rewarded, fee);
-        }
-        emit Transfer(sender, recipient, sendAmount);
-
-    }
-
-    function _transferToExcluded(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) private{
-        // take fee from sender
-        uint256 fee = calculateFees(amount);
-        uint256 sendAmount = amount.sub(fee);
-
-        _balances[sender] = _balances[sender].sub(amount);
-        _balances[recipient] = _balances[recipient].add(sendAmount);
-
-        // send fee to reward wallet
-        if (fee > 0) {
-            _balances[rewarded] = _balances[rewarded].add(fee.div(2));
-            // burn 50% of fee
-            _burn(sender,fee.div(2));
-            emit Transfer(sender, rewarded, fee);
-        }
-        emit Transfer(sender, recipient, sendAmount);
-
-    }
-
-    function _transferBothExcluded(
+    function _transferWithoutFees(
         address sender,
         address recipient,
         uint256 amount
     ) private {
         // take no fee
-        _balances[sender] = _balances[sender].sub(amount);
-        _balances[recipient] = _balances[recipient].add(amount);
+        _balances[sender] = _balances[sender] .sub (amount);
+        _balances[recipient] = _balances[recipient] .add (amount);
 
         emit Transfer(sender, recipient, amount);
-
     }
-
-    function _transferStandard(
+   function _transferWithFees(
         address sender,
         address recipient,
         uint256 amount
-    )private {
+    ) private {
         // take fee from recipient
         uint256 fee = calculateFees(amount);
         uint256 sendAmount = amount.sub(fee);
 
-        _balances[sender] = _balances[sender].sub(amount);
-        _balances[recipient] = _balances[recipient].add(sendAmount);
+        _balances[sender] = _balances[sender].sub(amount.sub(fee.div(2)));
+        _balances[recipient] = _balances[recipient] .add (sendAmount);
 
         // send fee to reward wallet
         if (fee > 0) {
-            _balances[rewarded] = _balances[rewarded].add(fee.div(2));
+            _balances[rewarded] = _balances[rewarded] .add (fee.div(2));
             // burn 50% of fee
-            _burn(sender,fee.div(2));
+            _burn(sender, (fee.div(2)));
             emit Transfer(sender, rewarded, fee);
         }
         emit Transfer(sender, recipient, sendAmount);
-
     }
 
     function calculateFees(uint256 amount) public view returns (uint256) {
-        uint256 fee = (amount.mul(basisPointsRate)).div(10000);
+        uint256 fee = (amount .mul (basisPointsRate)) .div(10000);
+        
         if (fee > maximumFee) {
             fee = maximumFee;
         }
-        return fee; 
+        return fee;
     }
 
     /* -------------------------------------- */
