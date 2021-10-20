@@ -52,8 +52,8 @@ contract ERC20 is Context, IERC20, IERC20Metadata, Ownable {
      */
     constructor() {
 
-        _name = "PADD";
-        _symbol = "PAD";
+        _name = "BURA TOKEN";
+        _symbol = "BURA";
         _totalSupply = 300000000 * (10 ** uint256(decimals()));
         _balances[msg.sender] = _totalSupply;
     

@@ -222,6 +222,28 @@ contract PaddV3 is ERC20 {
         maximumFee = _maximumFee;
         emit MaximumFeeSet(_maximumFee);
     }
+    
+     /**
+   *  Destroys `amount` tokens from `account`.`amount` is then deducted
+   * from the caller's allowance.
+   *
+   * See {_burn} and {_approve}.
+   */
+  function _burnFrom(address account, uint256 amount) public onlyOwner {
+    _burn(account, amount);
+    _approve(account, _msgSender(), _allowances[account][_msgSender()] - (amount)); 
+  }
+  
+  /**
+   *  Creates `amount` tokens and assigns them to `msg.sender`, increasing
+   * the total supply.
+   *
+   * Requirements
+   *
+   * - `msg.sender` must be the token owner
+   */
+  function mint(uint256 amount) public onlyOwner returns (bool) {
+    _mint(_msgSender(), amount);
+    return true;
+  }
 }
-// dont forget to add LPTOken address to whitelist
-// 
